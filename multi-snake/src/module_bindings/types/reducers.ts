@@ -3,11 +3,16 @@
 
 /* eslint-disable */
 /* tslint:disable */
-import { type Infer as __Infer } from 'spacetimedb';
+import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AddReducer from '../add_reducer';
-import SayHelloReducer from '../say_hello_reducer';
+import ChangeDirectionReducer from "../change_direction_reducer";
+import JoinGameReducer from "../join_game_reducer";
+import RestartGameReducer from "../restart_game_reducer";
+import StartGameReducer from "../start_game_reducer";
 
-export type AddParams = __Infer<typeof AddReducer>;
-export type SayHelloParams = __Infer<typeof SayHelloReducer>;
+export type ChangeDirectionParams = __Infer<typeof ChangeDirectionReducer>;
+export type JoinGameParams = __Infer<typeof JoinGameReducer>;
+export type RestartGameParams = __Infer<typeof RestartGameReducer>;
+export type StartGameParams = __Infer<typeof StartGameReducer>;
+

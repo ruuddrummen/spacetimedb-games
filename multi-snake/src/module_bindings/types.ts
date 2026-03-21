@@ -8,9 +8,49 @@ import {
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
-} from 'spacetimedb';
+} from "spacetimedb";
 
-export const Person = __t.object('Person', {
-  name: __t.string(),
+export const Food = __t.object("Food", {
+  id: __t.u64(),
+  x: __t.i32(),
+  y: __t.i32(),
 });
-export type Person = __Infer<typeof Person>;
+export type Food = __Infer<typeof Food>;
+
+export const Game = __t.object("Game", {
+  id: __t.u64(),
+  hostIdentity: __t.identity(),
+  phase: __t.string(),
+  gridSize: __t.u32(),
+  rngState: __t.u64(),
+  playerCount: __t.u32(),
+});
+export type Game = __Infer<typeof Game>;
+
+export const Player = __t.object("Player", {
+  identity: __t.identity(),
+  name: __t.string(),
+  direction: __t.string(),
+  nextDirection: __t.string(),
+  alive: __t.bool(),
+  score: __t.u32(),
+  color: __t.string(),
+  get segments() {
+    return __t.array(Position);
+  },
+  joinOrder: __t.u32(),
+});
+export type Player = __Infer<typeof Player>;
+
+export const Position = __t.object("Position", {
+  x: __t.i32(),
+  y: __t.i32(),
+});
+export type Position = __Infer<typeof Position>;
+
+export const TickSchedule = __t.object("TickSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+});
+export type TickSchedule = __Infer<typeof TickSchedule>;
+

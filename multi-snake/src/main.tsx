@@ -1,42 +1,57 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
-import { Identity } from 'spacetimedb';
-import { SpacetimeDBProvider } from 'spacetimedb/react';
-import { DbConnection, ErrorContext } from './module_bindings/index.ts';
+import {
+  StrictMode,
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import { Identity } from "spacetimedb";
+import { SpacetimeDBProvider } from "spacetimedb/react";
+import { DbConnection, ErrorContext } from "./module_bindings/index.ts";
 
-const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? 'ws://localhost:3000';
-const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'react-ts';
+const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? "ws://localhost:3000";
+const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? "multi-snake";
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
-const onConnect = (_conn: DbConnection, identity: Identity, token: string) => {
-  localStorage.setItem(TOKEN_KEY, token);
-  console.log(
-    'Connected to SpacetimeDB with identity:',
-    identity.toHexString()
+export const IdentityContext = createContext<Identity | null>(null);
+export const useIdentity = () => useContext(IdentityContext);
+
+function Root() {
+  const [identity, setIdentity] = useState<Identity | null>(null);
+
+  const connectionBuilder = useMemo(
+    () =>
+      DbConnection.builder()
+        .withUri(HOST)
+        .withDatabaseName(DB_NAME)
+        .withToken(localStorage.getItem(TOKEN_KEY) || undefined)
+        .onConnect((conn: DbConnection, id: Identity, token: string) => {
+          localStorage.setItem(TOKEN_KEY, token);
+          setIdentity(id);
+          conn.subscriptionBuilder().subscribeToAllTables();
+        })
+        .onDisconnect(() => {
+          console.log("Disconnected from SpacetimeDB");
+        })
+        .onConnectError((_ctx: ErrorContext, err: Error) => {
+          console.error("Error connecting to SpacetimeDB:", err);
+        }),
+    [],
   );
-};
 
-const onDisconnect = () => {
-  console.log('Disconnected from SpacetimeDB');
-};
-
-const onConnectError = (_ctx: ErrorContext, err: Error) => {
-  console.log('Error connecting to SpacetimeDB:', err);
-};
-
-const connectionBuilder = DbConnection.builder()
-  .withUri(HOST)
-  .withDatabaseName(DB_NAME)
-  .withToken(localStorage.getItem(TOKEN_KEY) || undefined)
-  .onConnect(onConnect)
-  .onDisconnect(onDisconnect)
-  .onConnectError(onConnectError);
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+  return (
     <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
-      <App />
+      <IdentityContext.Provider value={identity}>
+        <App />
+      </IdentityContext.Provider>
     </SpacetimeDBProvider>
-  </StrictMode>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <Root />
+  </StrictMode>,
 );
