@@ -1,0 +1,70 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Bootstrap Project",
+      "detail": "Scaffold a new react-ts project from the official SpacetimeDB template. Run once in an empty workspace.",
+      "type": "shell",
+      "command": "spacetime dev --template react-ts",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start SpacetimeDB Dev",
+      "detail": "Publish the TypeScript server module and watch for changes. Starts the local SpacetimeDB server automatically.",
+      "type": "shell",
+      "command": "spacetime dev",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Frontend",
+      "detail": "Start the Vite dev server for the React client (port 5173).",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      },
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start All",
+      "detail": "Start SpacetimeDB dev server and Vite frontend in parallel.",
+      "dependsOn": ["Start SpacetimeDB Dev", "Start Frontend"],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
