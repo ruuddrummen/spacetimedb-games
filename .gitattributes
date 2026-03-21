@@ -1,5 +1,8 @@
-# Default: normalize line endings to LF on commit
-* text=auto eol=lf
+# Normalize all text files to LF in the object store on commit.
+# On Windows checkout, core.autocrlf=true will produce CRLF — that's fine.
+* text=auto
 
-# Force shell scripts to stay LF regardless of platform
-*.sh text eol=lf
+# Files that run inside Linux containers must always be LF on checkout.
+*.sh           text eol=lf
+Dockerfile*    text eol=lf
+.dockerignore  text eol=lf
