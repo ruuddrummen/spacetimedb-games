@@ -79,7 +79,7 @@ function App() {
     );
   }
 
-  if (myGame.phase === "playing") {
+  if (myGame.phase === "countdown" || myGame.phase === "playing") {
     return (
       <>
         {showDisconnectedBanner && (

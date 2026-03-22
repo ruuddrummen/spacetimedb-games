@@ -148,8 +148,8 @@ export const leave_lobby = spacetimedb.reducer((ctx) => {
       playerCount: gameRow.playerCount > 0 ? gameRow.playerCount - 1 : 0,
     });
 
-    // If game is playing and <=1 alive player remains, end
-    if (gameRow.phase === "playing") {
+    // If game is playing/countdown and <=1 alive player remains, end
+    if (gameRow.phase === "playing" || gameRow.phase === "countdown") {
       const remaining = [
         ...ctx.db.player.player_game_id.filter(gameRow.id),
       ].filter((pl) => pl.alive);
@@ -221,11 +221,12 @@ export const start_game = spacetimedb.reducer((ctx) => {
     rng = spawnFood(ctx, rng, gridSize, gameId);
   }
 
-  // Update game state
-  ctx.db.game.id.update({ ...gameRow, phase: "playing", rngState: rng });
+  // Update game state — enter countdown phase
+  ctx.db.game.id.update({ ...gameRow, phase: "countdown", rngState: rng });
 
-  // Schedule first tick
-  const nextTime = ctx.timestamp.microsSinceUnixEpoch + TICK_INTERVAL_MICROS;
+  // Schedule first tick after 3-second countdown
+  const COUNTDOWN_MICROS = 3_000_000n;
+  const nextTime = ctx.timestamp.microsSinceUnixEpoch + COUNTDOWN_MICROS;
   ctx.db.tick_schedule.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextTime),
@@ -263,7 +264,24 @@ export const game_tick = spacetimedb.reducer(
   (ctx, { arg: scheduledRow }) => {
     const gameId = scheduledRow.gameId;
     const gameRow = ctx.db.game.id.find(gameId);
-    if (!gameRow || gameRow.phase !== "playing") return;
+    if (
+      !gameRow ||
+      (gameRow.phase !== "playing" && gameRow.phase !== "countdown")
+    )
+      return;
+
+    // Transition from countdown to playing
+    if (gameRow.phase === "countdown") {
+      ctx.db.game.id.update({ ...gameRow, phase: "playing" });
+      const nextTime =
+        ctx.timestamp.microsSinceUnixEpoch + TICK_INTERVAL_MICROS;
+      ctx.db.tick_schedule.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(nextTime),
+        gameId,
+      });
+      return;
+    }
 
     const gridSize = gameRow.gridSize;
     let rng = gameRow.rngState;

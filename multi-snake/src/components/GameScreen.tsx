@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { styles } from "../styles";
 import { GameCanvas } from "./GameCanvas";
+import { CountdownOverlay } from "./CountdownOverlay";
 import { SwipeArea } from "./SwipeArea";
 import { TouchDPad } from "./TouchDPad";
 import { useIsTouchDevice } from "../hooks/useIsTouchDevice";
@@ -77,11 +78,14 @@ export function GameScreen({
       </h1>
       <div style={styles.gameLayout}>
         <SwipeArea onSwipe={onChangeDirection}>
-          <GameCanvas
-            players={gamePlayers}
-            foods={gameFoods}
-            gridSize={game.gridSize}
-          />
+          <div style={{ position: "relative" }}>
+            <GameCanvas
+              players={gamePlayers}
+              foods={gameFoods}
+              gridSize={game.gridSize}
+            />
+            <CountdownOverlay active={game.phase === "countdown"} />
+          </div>
         </SwipeArea>
         <div style={styles.scoreboard}>
           <h3
