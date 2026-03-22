@@ -3,7 +3,7 @@ import { tables, reducers } from "./module_bindings";
 import { useSpacetimeDB, useTable, useReducer } from "spacetimedb/react";
 import { useIdentity } from "./main";
 import type { Identity } from "spacetimedb";
-import type { Game, Player, Food } from "./module_bindings/types";
+import type { Game, Player, Food, User } from "./module_bindings/types";
 
 const CELL_SIZE = 18;
 
@@ -76,6 +76,16 @@ const styles = {
     color: "#00cc00",
     cursor: "pointer",
   },
+  btnDanger: {
+    padding: "0.6rem 1.5rem",
+    fontSize: "0.9rem",
+    fontWeight: 600,
+    border: "2px solid #e74c3c",
+    borderRadius: "8px",
+    background: "transparent",
+    color: "#e74c3c",
+    cursor: "pointer",
+  },
   playerList: {
     listStyle: "none",
     padding: 0,
@@ -132,6 +142,15 @@ const styles = {
     fontSize: "0.75rem",
     marginLeft: "4px",
   },
+  lobbyRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0.75rem 1rem",
+    background: "#16213e",
+    borderRadius: "8px",
+    marginBottom: "0.5rem",
+  },
 } as const;
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -145,54 +164,185 @@ function ConnectingScreen() {
   );
 }
 
-function JoinScreen({ onJoin }: { onJoin: (name: string) => void }) {
-  const [name, setName] = useState("");
+function MainMenuScreen({
+  userRow,
+  games,
+  users,
+  players,
+  onSetName,
+  onCreateLobby,
+  onJoinLobby,
+}: {
+  userRow: User | null;
+  games: readonly Game[];
+  users: readonly User[];
+  players: readonly Player[];
+  onSetName: (name: string) => void;
+  onCreateLobby: () => void;
+  onJoinLobby: (gameId: bigint) => void;
+}) {
+  const [name, setName] = useState(userRow?.name ?? "");
+  const [editing, setEditing] = useState(!userRow);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) onJoin(name.trim());
+    if (name.trim()) {
+      onSetName(name.trim());
+      setEditing(false);
+    }
   };
+
+  const lobbies = games.filter((g) => g.phase === "lobby");
+
+  // Find host name for a game
+  const getHostName = (g: Game) => {
+    const hostUser = users.find(
+      (u) => u.identity.toHexString() === g.hostIdentity.toHexString(),
+    );
+    return hostUser?.name ?? "Unknown";
+  };
+
+  // Count players in a game
+  const getPlayerCount = (g: Game) => {
+    return players.filter((p) => p.gameId === g.id).length;
+  };
+
+  if (!userRow || editing) {
+    return (
+      <div style={styles.page}>
+        <h1 style={styles.title}>SNAKE ARENA</h1>
+        <p style={styles.subtitle}>Multiplayer Snake Game</p>
+        <div style={styles.card}>
+          <form onSubmit={handleNameSubmit}>
+            <input
+              style={styles.input}
+              type="text"
+              placeholder="Enter your name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={16}
+              autoFocus
+            />
+            <button
+              style={styles.btnPrimary}
+              type="submit"
+              disabled={!name.trim()}
+            >
+              {userRow ? "Update Name" : "Set Name"}
+            </button>
+            {userRow && (
+              <button
+                type="button"
+                style={{
+                  ...styles.btnSecondary,
+                  width: "100%",
+                  marginTop: "0.5rem",
+                }}
+                onClick={() => {
+                  setName(userRow.name);
+                  setEditing(false);
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>SNAKE ARENA</h1>
       <p style={styles.subtitle}>Multiplayer Snake Game</p>
       <div style={styles.card}>
-        <form onSubmit={handleSubmit}>
-          <input
-            style={styles.input}
-            type="text"
-            placeholder="Enter your name..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={16}
-            autoFocus
-          />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1.5rem",
+          }}
+        >
+          <span style={{ color: "#eee", fontSize: "1.1rem" }}>
+            Welcome, <strong>{userRow.name}</strong>
+          </span>
           <button
-            style={styles.btnPrimary}
-            type="submit"
-            disabled={!name.trim()}
+            style={{
+              ...styles.btnSecondary,
+              padding: "0.3rem 0.75rem",
+              fontSize: "0.8rem",
+            }}
+            onClick={() => setEditing(true)}
           >
-            Join Game
+            Rename
           </button>
-        </form>
+        </div>
+
+        <button style={styles.btnPrimary} onClick={onCreateLobby}>
+          Create Lobby
+        </button>
+
+        <h3 style={{ margin: "1.5rem 0 0.75rem", color: "#eee" }}>
+          Open Lobbies ({lobbies.length})
+        </h3>
+        {lobbies.length === 0 ? (
+          <p style={{ color: "#666", fontSize: "0.9rem" }}>
+            No open lobbies. Create one!
+          </p>
+        ) : (
+          lobbies.map((g) => (
+            <div key={g.id.toString()} style={styles.lobbyRow}>
+              <div>
+                <span style={{ color: "#eee" }}>{getHostName(g)}'s lobby</span>
+                <span
+                  style={{
+                    color: "#888",
+                    marginLeft: "0.5rem",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  {getPlayerCount(g)}/8 players
+                </span>
+              </div>
+              <button
+                style={{
+                  ...styles.btnSecondary,
+                  padding: "0.3rem 0.75rem",
+                  fontSize: "0.8rem",
+                }}
+                onClick={() => onJoinLobby(g.id)}
+              >
+                Join
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 }
 
 function LobbyScreen({
+  game,
   players,
   isHost,
   onStart,
+  onLeave,
+  onClose,
   identity,
 }: {
+  game: Game;
   players: readonly Player[];
   isHost: boolean;
   onStart: () => void;
+  onLeave: () => void;
+  onClose: () => void;
   identity: Identity | null;
 }) {
-  const sorted = [...players].sort((a, b) => a.joinOrder - b.joinOrder);
+  const lobbyPlayers = players.filter((p) => p.gameId === game.id);
+  const sorted = [...lobbyPlayers].sort((a, b) => a.joinOrder - b.joinOrder);
 
   return (
     <div style={styles.page}>
@@ -200,7 +350,7 @@ function LobbyScreen({
       <p style={styles.subtitle}>Waiting in lobby...</p>
       <div style={styles.card}>
         <h3 style={{ margin: "0 0 0.5rem", color: "#eee" }}>
-          Players ({players.length})
+          Players ({lobbyPlayers.length})
         </h3>
         <ul style={styles.playerList}>
           {sorted.map((p) => {
@@ -224,21 +374,43 @@ function LobbyScreen({
           })}
         </ul>
         {isHost ? (
-          <button style={styles.btnPrimary} onClick={onStart}>
-            Start Game
-            {players.length === 1 ? " (Solo)" : ` (${players.length} players)`}
-          </button>
+          <>
+            <button style={styles.btnPrimary} onClick={onStart}>
+              Start Game
+              {lobbyPlayers.length === 1
+                ? " (Solo)"
+                : ` (${lobbyPlayers.length} players)`}
+            </button>
+            <button
+              style={{
+                ...styles.btnDanger,
+                width: "100%",
+                marginTop: "0.5rem",
+              }}
+              onClick={onClose}
+            >
+              Close Lobby
+            </button>
+          </>
         ) : (
-          <p
-            style={{
-              color: "#888",
-              fontSize: "0.85rem",
-              textAlign: "center",
-              margin: "1rem 0 0",
-            }}
-          >
-            Waiting for host to start the game...
-          </p>
+          <>
+            <p
+              style={{
+                color: "#888",
+                fontSize: "0.85rem",
+                textAlign: "center",
+                margin: "1rem 0 0.5rem",
+              }}
+            >
+              Waiting for host to start the game...
+            </p>
+            <button
+              style={{ ...styles.btnSecondary, width: "100%" }}
+              onClick={onLeave}
+            >
+              Leave Lobby
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -251,16 +423,21 @@ function GameScreen({
   foods,
   identity,
   onChangeDirection,
+  onLeave,
 }: {
   game: Game;
   players: readonly Player[];
   foods: readonly Food[];
   identity: Identity | null;
   onChangeDirection: (dir: string) => void;
+  onLeave: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gridSize = game.gridSize;
   const canvasSize = gridSize * CELL_SIZE;
+
+  const gamePlayers = players.filter((p) => p.gameId === game.id);
+  const gameFoods = foods.filter((f) => f.gameId === game.id);
 
   // Keyboard controls
   useEffect(() => {
@@ -323,7 +500,7 @@ function GameScreen({
     }
 
     // Food
-    for (const f of foods) {
+    for (const f of gameFoods) {
       ctx.fillStyle = "#ff6b6b";
       ctx.beginPath();
       ctx.arc(
@@ -342,7 +519,7 @@ function GameScreen({
     }
 
     // Snakes
-    for (const p of players) {
+    for (const p of gamePlayers) {
       if (p.segments.length === 0) continue;
       const alpha = p.alive ? 1 : 0.3;
       ctx.globalAlpha = alpha;
@@ -382,9 +559,9 @@ function GameScreen({
       }
       ctx.globalAlpha = 1;
     }
-  }, [players, foods, gridSize, canvasSize]);
+  }, [gamePlayers, gameFoods, gridSize, canvasSize]);
 
-  const sorted = [...players].sort((a, b) => b.score - a.score);
+  const sorted = [...gamePlayers].sort((a, b) => b.score - a.score);
 
   return (
     <div style={styles.page}>
@@ -437,6 +614,17 @@ function GameScreen({
           >
             WASD / Arrow keys
           </div>
+          <button
+            style={{
+              ...styles.btnDanger,
+              width: "100%",
+              marginTop: "0.75rem",
+              fontSize: "0.8rem",
+            }}
+            onClick={onLeave}
+          >
+            Leave Game
+          </button>
         </div>
       </div>
     </div>
@@ -444,21 +632,26 @@ function GameScreen({
 }
 
 function GameOverScreen({
+  game,
   players,
   isHost,
   onRestart,
+  onLeave,
 }: {
+  game: Game;
   players: readonly Player[];
   isHost: boolean;
   onRestart: () => void;
+  onLeave: () => void;
 }) {
-  const sorted = [...players].sort((a, b) => b.score - a.score);
+  const gamePlayers = players.filter((p) => p.gameId === game.id);
+  const sorted = [...gamePlayers].sort((a, b) => b.score - a.score);
   const winner = sorted[0];
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>GAME OVER</h1>
-      {players.length > 1 && winner && (
+      {gamePlayers.length > 1 && winner && (
         <p
           style={{
             fontSize: "1.2rem",
@@ -470,7 +663,7 @@ function GameOverScreen({
           🏆 {winner.name} wins!
         </p>
       )}
-      {players.length === 1 && (
+      {gamePlayers.length === 1 && (
         <p style={{ fontSize: "1.2rem", color: "#ccc", margin: "0 0 1.5rem" }}>
           Final Score:{" "}
           <span style={{ color: "#00cc00", fontWeight: 700 }}>
@@ -499,20 +692,40 @@ function GameOverScreen({
           ))}
         </ul>
         {isHost ? (
-          <button style={styles.btnPrimary} onClick={onRestart}>
-            Play Again
-          </button>
+          <>
+            <button style={styles.btnPrimary} onClick={onRestart}>
+              Play Again
+            </button>
+            <button
+              style={{
+                ...styles.btnSecondary,
+                width: "100%",
+                marginTop: "0.5rem",
+              }}
+              onClick={onLeave}
+            >
+              Leave Lobby
+            </button>
+          </>
         ) : (
-          <p
-            style={{
-              color: "#888",
-              fontSize: "0.85rem",
-              textAlign: "center",
-              margin: "1rem 0 0",
-            }}
-          >
-            Waiting for host to restart...
-          </p>
+          <>
+            <p
+              style={{
+                color: "#888",
+                fontSize: "0.85rem",
+                textAlign: "center",
+                margin: "1rem 0 0.5rem",
+              }}
+            >
+              Waiting for host to restart...
+            </p>
+            <button
+              style={{ ...styles.btnSecondary, width: "100%" }}
+              onClick={onLeave}
+            >
+              Leave Lobby
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -529,10 +742,13 @@ function App() {
   const [games] = useTable(tables.game);
   const [players] = useTable(tables.player);
   const [foods] = useTable(tables.food);
+  const [users] = useTable(tables.user);
 
-  const game = games[0] ?? null;
-
-  const joinGame = useReducer(reducers.joinGame);
+  const setName = useReducer(reducers.setName);
+  const createLobby = useReducer(reducers.createLobby);
+  const joinLobby = useReducer(reducers.joinLobby);
+  const leaveLobby = useReducer(reducers.leaveLobby);
+  const closeLobby = useReducer(reducers.closeLobby);
   const startGame = useReducer(reducers.startGame);
   const changeDir = useReducer(reducers.changeDirection);
   const restartGame = useReducer(reducers.restartGame);
@@ -542,46 +758,77 @@ function App() {
     [changeDir],
   );
 
-  // Determine my player
+  // Find my user and player
+  const myUser = identity
+    ? users.find((u) => u.identity.toHexString() === identity.toHexString())
+    : null;
+
   const myPlayer = identity
     ? players.find((p) => p.identity.toHexString() === identity.toHexString())
     : null;
 
+  const myGame = myPlayer
+    ? (games.find((g) => g.id === myPlayer.gameId) ?? null)
+    : null;
+
   const isHost = !!(
     identity &&
-    game &&
-    game.hostIdentity.toHexString() === identity.toHexString()
+    myGame &&
+    myGame.hostIdentity.toHexString() === identity.toHexString()
   );
 
   if (!connected) return <ConnectingScreen />;
-  if (!myPlayer) return <JoinScreen onJoin={(name) => joinGame({ name })} />;
-  if (!game || game.phase === "lobby") {
+
+  // No player row → show main menu (name entry + lobby browser)
+  if (!myPlayer || !myGame) {
+    return (
+      <MainMenuScreen
+        userRow={myUser ?? null}
+        games={games}
+        users={users}
+        players={players}
+        onSetName={(name) => setName({ name })}
+        onCreateLobby={() => createLobby()}
+        onJoinLobby={(gameId) => joinLobby({ gameId })}
+      />
+    );
+  }
+
+  if (myGame.phase === "lobby") {
     return (
       <LobbyScreen
+        game={myGame}
         players={players}
         isHost={isHost}
         onStart={() => startGame()}
+        onLeave={() => leaveLobby()}
+        onClose={() => closeLobby()}
         identity={identity}
       />
     );
   }
-  if (game.phase === "playing") {
+
+  if (myGame.phase === "playing") {
     return (
       <GameScreen
-        game={game}
+        game={myGame}
         players={players}
         foods={foods}
         identity={identity}
         onChangeDirection={handleChangeDirection}
+        onLeave={() => leaveLobby()}
       />
     );
   }
-  if (game.phase === "finished") {
+
+  if (myGame.phase === "finished") {
     return (
       <GameOverScreen
+        game={myGame}
         players={players}
         isHost={isHost}
         onRestart={() => restartGame()}
+        onLeave={() => leaveLobby()}
       />
     );
   }

@@ -22,10 +22,18 @@ export const COLORS = [
 
 // ── Tables ─────────────────────────────────────────────────────────────────────
 
+export const user = table(
+  { name: "user", public: true },
+  {
+    identity: t.identity().primaryKey(),
+    name: t.string(),
+  },
+);
+
 export const game = table(
   { name: "game", public: true },
   {
-    id: t.u64().primaryKey(),
+    id: t.u64().primaryKey().autoInc(),
     hostIdentity: t.identity(),
     phase: t.string(), // 'lobby' | 'playing' | 'finished'
     gridSize: t.u32(),
@@ -35,9 +43,20 @@ export const game = table(
 );
 
 export const player = table(
-  { name: "player", public: true },
+  {
+    name: "player",
+    public: true,
+    indexes: [
+      {
+        accessor: "player_game_id",
+        algorithm: "btree" as const,
+        columns: ["gameId"],
+      },
+    ],
+  },
   {
     identity: t.identity().primaryKey(),
+    gameId: t.u64(),
     name: t.string(),
     direction: t.string(), // 'up' | 'down' | 'left' | 'right'
     nextDirection: t.string(),
@@ -50,9 +69,20 @@ export const player = table(
 );
 
 export const food = table(
-  { name: "food", public: true },
+  {
+    name: "food",
+    public: true,
+    indexes: [
+      {
+        accessor: "food_game_id",
+        algorithm: "btree" as const,
+        columns: ["gameId"],
+      },
+    ],
+  },
   {
     id: t.u64().primaryKey().autoInc(),
+    gameId: t.u64(),
     x: t.i32(),
     y: t.i32(),
   },
@@ -75,10 +105,11 @@ export const tick_schedule = table(
   {
     scheduledId: t.u64().primaryKey().autoInc(),
     scheduledAt: t.scheduleAt(),
+    gameId: t.u64(),
   },
 );
 
 // ── Schema ─────────────────────────────────────────────────────────────────────
 
-const spacetimedb = schema({ game, player, food, tick_schedule });
+const spacetimedb = schema({ user, game, player, food, tick_schedule });
 export default spacetimedb;

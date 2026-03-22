@@ -12,6 +12,7 @@ import {
 
 export const Food = __t.object("Food", {
   id: __t.u64(),
+  gameId: __t.u64(),
   x: __t.i32(),
   y: __t.i32(),
 });
@@ -29,6 +30,7 @@ export type Game = __Infer<typeof Game>;
 
 export const Player = __t.object("Player", {
   identity: __t.identity(),
+  gameId: __t.u64(),
   name: __t.string(),
   direction: __t.string(),
   nextDirection: __t.string(),
@@ -51,6 +53,13 @@ export type Position = __Infer<typeof Position>;
 export const TickSchedule = __t.object("TickSchedule", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
+  gameId: __t.u64(),
 });
 export type TickSchedule = __Infer<typeof TickSchedule>;
+
+export const User = __t.object("User", {
+  identity: __t.identity(),
+  name: __t.string(),
+});
+export type User = __Infer<typeof User>;
 

@@ -74,15 +74,16 @@ export function spawnFood(
   ctx: any,
   rngState: bigint,
   gridSize: number,
+  gameId: bigint,
 ): bigint {
   const occupied = new Set<string>();
-  for (const p of ctx.db.player.iter()) {
+  for (const p of ctx.db.player.player_game_id.filter(gameId)) {
     if (!p.alive) continue;
     for (const seg of p.segments) {
       occupied.add(`${seg.x},${seg.y}`);
     }
   }
-  for (const f of ctx.db.food.iter()) {
+  for (const f of ctx.db.food.food_game_id.filter(gameId)) {
     occupied.add(`${f.x},${f.y}`);
   }
 
@@ -93,7 +94,7 @@ export function spawnFood(
     [state, x] = rngInt(state, gridSize);
     [state, y] = rngInt(state, gridSize);
     if (!occupied.has(`${x},${y}`)) {
-      ctx.db.food.insert({ id: 0n, x, y });
+      ctx.db.food.insert({ id: 0n, gameId, x, y });
       return state;
     }
     attempts++;
@@ -102,7 +103,7 @@ export function spawnFood(
   for (let x = 0; x < gridSize; x++) {
     for (let y = 0; y < gridSize; y++) {
       if (!occupied.has(`${x},${y}`)) {
-        ctx.db.food.insert({ id: 0n, x, y });
+        ctx.db.food.insert({ id: 0n, gameId, x, y });
         return state;
       }
     }

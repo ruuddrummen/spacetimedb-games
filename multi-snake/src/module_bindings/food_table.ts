@@ -12,6 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
+  gameId: __t.u64().name("game_id"),
   x: __t.i32(),
   y: __t.i32(),
 });

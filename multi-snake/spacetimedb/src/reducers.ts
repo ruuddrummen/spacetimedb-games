@@ -17,28 +17,91 @@ import {
   spawnFood,
 } from "./helpers";
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cleanupGame(ctx: any, gameId: bigint) {
+  for (const p of [...ctx.db.player.player_game_id.filter(gameId)]) {
+    ctx.db.player.identity.delete(p.identity);
+  }
+  for (const f of [...ctx.db.food.food_game_id.filter(gameId)]) {
+    ctx.db.food.id.delete(f.id);
+  }
+  for (const tick of [...ctx.db.tick_schedule.iter()]) {
+    if (tick.gameId === gameId) {
+      ctx.db.tick_schedule.scheduledId.delete(tick.scheduledId);
+    }
+  }
+  ctx.db.game.id.delete(gameId);
+}
+
 // ── Reducers ───────────────────────────────────────────────────────────────────
 
-export const joinGame = spacetimedb.reducer(
+export const set_name = spacetimedb.reducer(
   { name: t.string() },
   (ctx, { name }) => {
-    if (!name.trim()) throw new SenderError("Name cannot be empty");
+    const trimmed = name.trim();
+    if (!trimmed) throw new SenderError("Name cannot be empty");
+    if (trimmed.length > 16) throw new SenderError("Name too long (max 16)");
 
-    const existing = ctx.db.player.identity.find(ctx.sender);
-    if (existing) throw new SenderError("Already joined");
-
-    let gameRow = ctx.db.game.id.find(1n);
-    if (!gameRow) {
-      gameRow = ctx.db.game.insert({
-        id: 1n,
-        hostIdentity: ctx.sender,
-        phase: "lobby",
-        gridSize: GRID_SIZE,
-        rngState: ctx.timestamp.microsSinceUnixEpoch,
-        playerCount: 0,
-      });
+    const existing = ctx.db.user.identity.find(ctx.sender);
+    if (existing) {
+      ctx.db.user.identity.update({ ...existing, name: trimmed });
+      // Also update player name if in a lobby
+      const p = ctx.db.player.identity.find(ctx.sender);
+      if (p) {
+        const gameRow = ctx.db.game.id.find(p.gameId);
+        if (gameRow && gameRow.phase === "lobby") {
+          ctx.db.player.identity.update({ ...p, name: trimmed });
+        }
+      }
+    } else {
+      ctx.db.user.insert({ identity: ctx.sender, name: trimmed });
     }
+  },
+);
 
+export const create_lobby = spacetimedb.reducer((ctx) => {
+  const userRow = ctx.db.user.identity.find(ctx.sender);
+  if (!userRow) throw new SenderError("Set your name first");
+
+  const existingPlayer = ctx.db.player.identity.find(ctx.sender);
+  if (existingPlayer) throw new SenderError("Already in a game");
+
+  const gameRow = ctx.db.game.insert({
+    id: 0n,
+    hostIdentity: ctx.sender,
+    phase: "lobby",
+    gridSize: GRID_SIZE,
+    rngState: ctx.timestamp.microsSinceUnixEpoch,
+    playerCount: 1,
+  });
+
+  ctx.db.player.insert({
+    identity: ctx.sender,
+    gameId: gameRow.id,
+    name: userRow.name,
+    direction: "right",
+    nextDirection: "right",
+    alive: true,
+    score: 0,
+    color: COLORS[0],
+    segments: [],
+    joinOrder: 0,
+  });
+});
+
+export const join_lobby = spacetimedb.reducer(
+  { gameId: t.u64() },
+  (ctx, { gameId }) => {
+    const userRow = ctx.db.user.identity.find(ctx.sender);
+    if (!userRow) throw new SenderError("Set your name first");
+
+    const existingPlayer = ctx.db.player.identity.find(ctx.sender);
+    if (existingPlayer) throw new SenderError("Already in a game");
+
+    const gameRow = ctx.db.game.id.find(gameId);
+    if (!gameRow) throw new SenderError("Game not found");
     if (gameRow.phase !== "lobby")
       throw new SenderError("Game already in progress");
 
@@ -47,7 +110,8 @@ export const joinGame = spacetimedb.reducer(
 
     ctx.db.player.insert({
       identity: ctx.sender,
-      name: name.trim(),
+      gameId,
+      name: userRow.name,
       direction: "right",
       nextDirection: "right",
       alive: true,
@@ -59,8 +123,63 @@ export const joinGame = spacetimedb.reducer(
   },
 );
 
-export const startGame = spacetimedb.reducer((ctx) => {
-  const gameRow = ctx.db.game.id.find(1n);
+export const leave_lobby = spacetimedb.reducer((ctx) => {
+  const p = ctx.db.player.identity.find(ctx.sender);
+  if (!p) throw new SenderError("Not in a game");
+
+  const gameRow = ctx.db.game.id.find(p.gameId);
+  if (!gameRow) {
+    ctx.db.player.identity.delete(ctx.sender);
+    return;
+  }
+
+  const isHost =
+    gameRow.hostIdentity.toHexString() === ctx.sender.toHexString();
+
+  if (isHost) {
+    // Host leaving closes the entire lobby
+    cleanupGame(ctx, gameRow.id);
+  } else {
+    ctx.db.player.identity.delete(ctx.sender);
+    ctx.db.game.id.update({
+      ...gameRow,
+      playerCount: gameRow.playerCount > 0 ? gameRow.playerCount - 1 : 0,
+    });
+
+    // If game is playing and <=1 alive player remains, end
+    if (gameRow.phase === "playing") {
+      const remaining = [
+        ...ctx.db.player.player_game_id.filter(gameRow.id),
+      ].filter((pl) => pl.alive);
+      if (remaining.length <= 1) {
+        ctx.db.game.id.update({
+          ...ctx.db.game.id.find(gameRow.id)!,
+          phase: "finished",
+        });
+      }
+    }
+  }
+});
+
+export const close_lobby = spacetimedb.reducer((ctx) => {
+  const p = ctx.db.player.identity.find(ctx.sender);
+  if (!p) throw new SenderError("Not in a game");
+
+  const gameRow = ctx.db.game.id.find(p.gameId);
+  if (!gameRow) throw new SenderError("Game not found");
+
+  if (gameRow.hostIdentity.toHexString() !== ctx.sender.toHexString()) {
+    throw new SenderError("Only the host can close the lobby");
+  }
+
+  cleanupGame(ctx, gameRow.id);
+});
+
+export const start_game = spacetimedb.reducer((ctx) => {
+  const myPlayer = ctx.db.player.identity.find(ctx.sender);
+  if (!myPlayer) throw new SenderError("Not in a game");
+
+  const gameRow = ctx.db.game.id.find(myPlayer.gameId);
   if (!gameRow) throw new SenderError("No game exists");
   if (gameRow.phase !== "lobby") throw new SenderError("Game not in lobby");
   if (gameRow.hostIdentity.toHexString() !== ctx.sender.toHexString()) {
@@ -69,9 +188,10 @@ export const startGame = spacetimedb.reducer((ctx) => {
 
   const gridSize = gameRow.gridSize;
   let rng = gameRow.rngState;
+  const gameId = gameRow.id;
 
-  // Initialize snakes for all players
-  const players = [...ctx.db.player.iter()];
+  // Initialize snakes for all players in this game
+  const players = [...ctx.db.player.player_game_id.filter(gameId)];
   if (players.length === 0) throw new SenderError("No players");
 
   for (const p of players) {
@@ -95,7 +215,7 @@ export const startGame = spacetimedb.reducer((ctx) => {
   // Spawn initial food
   const foodCount = Math.max(3, players.length + 1);
   for (let i = 0; i < foodCount; i++) {
-    rng = spawnFood(ctx, rng, gridSize);
+    rng = spawnFood(ctx, rng, gridSize, gameId);
   }
 
   // Update game state
@@ -106,10 +226,11 @@ export const startGame = spacetimedb.reducer((ctx) => {
   ctx.db.tick_schedule.insert({
     scheduledId: 0n,
     scheduledAt: ScheduleAt.time(nextTime),
+    gameId,
   });
 });
 
-export const changeDirection = spacetimedb.reducer(
+export const change_direction = spacetimedb.reducer(
   { direction: t.string() },
   (ctx, { direction }) => {
     const validDirs = ["up", "down", "left", "right"];
@@ -126,15 +247,16 @@ export const changeDirection = spacetimedb.reducer(
   },
 );
 
-export const gameTick = spacetimedb.reducer(
+export const game_tick = spacetimedb.reducer(
   { arg: tick_schedule.rowType },
-  (ctx, { arg: _scheduledRow }) => {
-    const gameRow = ctx.db.game.id.find(1n);
+  (ctx, { arg: scheduledRow }) => {
+    const gameId = scheduledRow.gameId;
+    const gameRow = ctx.db.game.id.find(gameId);
     if (!gameRow || gameRow.phase !== "playing") return;
 
     const gridSize = gameRow.gridSize;
     let rng = gameRow.rngState;
-    const allPlayers = [...ctx.db.player.iter()];
+    const allPlayers = [...ctx.db.player.player_game_id.filter(gameId)];
     const alivePlayers = allPlayers.filter((p) => p.alive);
 
     if (alivePlayers.length === 0) {
@@ -194,8 +316,8 @@ export const gameTick = spacetimedb.reducer(
       }
     }
 
-    // Collect food positions
-    const foodList = [...ctx.db.food.iter()];
+    // Collect food positions for this game
+    const foodList = [...ctx.db.food.food_game_id.filter(gameId)];
     const foodMap = new Map<string, bigint>();
     for (const f of foodList) {
       foodMap.set(`${f.x},${f.y}`, f.id);
@@ -221,7 +343,7 @@ export const gameTick = spacetimedb.reducer(
         ctx.db.food.id.delete(foodId);
         foodMap.delete(foodKey);
         newScore += 1;
-        rng = spawnFood(ctx, rng, gridSize);
+        rng = spawnFood(ctx, rng, gridSize, gameId);
       } else {
         newSegments.pop();
       }
@@ -260,35 +382,40 @@ export const gameTick = spacetimedb.reducer(
     ctx.db.tick_schedule.insert({
       scheduledId: 0n,
       scheduledAt: ScheduleAt.time(nextTime),
+      gameId,
     });
   },
 );
 
-// Wire up the scheduled table → gameTick reducer (late-binding to avoid circular dep)
-registerGameTick(gameTick);
+// Wire up the scheduled table → game_tick reducer (late-binding to avoid circular dep)
+registerGameTick(game_tick);
 
-export const restartGame = spacetimedb.reducer((ctx) => {
-  const gameRow = ctx.db.game.id.find(1n);
+export const restart_game = spacetimedb.reducer((ctx) => {
+  const myPlayer = ctx.db.player.identity.find(ctx.sender);
+  if (!myPlayer) throw new SenderError("Not in a game");
+
+  const gameRow = ctx.db.game.id.find(myPlayer.gameId);
   if (!gameRow) throw new SenderError("No game exists");
   if (gameRow.hostIdentity.toHexString() !== ctx.sender.toHexString()) {
     throw new SenderError("Only the host can restart");
   }
 
-  // Clear food
-  const allFood = [...ctx.db.food.iter()];
-  for (const f of allFood) {
+  const gameId = gameRow.id;
+
+  // Clear food for this game
+  for (const f of [...ctx.db.food.food_game_id.filter(gameId)]) {
     ctx.db.food.id.delete(f.id);
   }
 
-  // Clear scheduled ticks
-  const allTicks = [...ctx.db.tick_schedule.iter()];
-  for (const tick of allTicks) {
-    ctx.db.tick_schedule.scheduledId.delete(tick.scheduledId);
+  // Clear scheduled ticks for this game
+  for (const tick of [...ctx.db.tick_schedule.iter()]) {
+    if (tick.gameId === gameId) {
+      ctx.db.tick_schedule.scheduledId.delete(tick.scheduledId);
+    }
   }
 
-  // Reset players
-  const allPlayers = [...ctx.db.player.iter()];
-  for (const p of allPlayers) {
+  // Reset players for this game
+  for (const p of [...ctx.db.player.player_game_id.filter(gameId)]) {
     ctx.db.player.identity.update({
       ...p,
       alive: true,

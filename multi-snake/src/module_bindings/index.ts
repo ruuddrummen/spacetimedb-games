@@ -35,8 +35,12 @@ import {
 
 // Import all reducer arg schemas
 import ChangeDirectionReducer from "./change_direction_reducer";
-import JoinGameReducer from "./join_game_reducer";
+import CloseLobbyReducer from "./close_lobby_reducer";
+import CreateLobbyReducer from "./create_lobby_reducer";
+import JoinLobbyReducer from "./join_lobby_reducer";
+import LeaveLobbyReducer from "./leave_lobby_reducer";
 import RestartGameReducer from "./restart_game_reducer";
+import SetNameReducer from "./set_name_reducer";
 import StartGameReducer from "./start_game_reducer";
 
 // Import all procedure arg schemas
@@ -46,6 +50,7 @@ import FoodRow from "./food_table";
 import GameRow from "./game_table";
 import PlayerRow from "./player_table";
 import TickScheduleRow from "./tick_schedule_table";
+import UserRow from "./user_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -54,6 +59,9 @@ const tablesSchema = __schema({
   food: __table({
     name: 'food',
     indexes: [
+      { accessor: 'food_game_id', name: 'food_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
       { accessor: 'id', name: 'food_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -76,6 +84,9 @@ const tablesSchema = __schema({
   player: __table({
     name: 'player',
     indexes: [
+      { accessor: 'player_game_id', name: 'player_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
       { accessor: 'identity', name: 'player_identity_idx_btree', algorithm: 'btree', columns: [
         'identity',
       ] },
@@ -95,13 +106,28 @@ const tablesSchema = __schema({
       { name: 'tick_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
     ],
   }, TickScheduleRow),
+  user: __table({
+    name: 'user',
+    indexes: [
+      { accessor: 'identity', name: 'user_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'user_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, UserRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("change_direction", ChangeDirectionReducer),
-  __reducerSchema("join_game", JoinGameReducer),
+  __reducerSchema("close_lobby", CloseLobbyReducer),
+  __reducerSchema("create_lobby", CreateLobbyReducer),
+  __reducerSchema("join_lobby", JoinLobbyReducer),
+  __reducerSchema("leave_lobby", LeaveLobbyReducer),
   __reducerSchema("restart_game", RestartGameReducer),
+  __reducerSchema("set_name", SetNameReducer),
   __reducerSchema("start_game", StartGameReducer),
 );
 

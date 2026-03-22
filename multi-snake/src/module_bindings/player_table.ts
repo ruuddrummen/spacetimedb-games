@@ -16,6 +16,7 @@ import {
 
 export default __t.row({
   identity: __t.identity().primaryKey(),
+  gameId: __t.u64().name("game_id"),
   name: __t.string(),
   direction: __t.string(),
   nextDirection: __t.string().name("next_direction"),

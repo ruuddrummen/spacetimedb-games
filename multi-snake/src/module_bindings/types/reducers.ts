@@ -7,12 +7,20 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import ChangeDirectionReducer from "../change_direction_reducer";
-import JoinGameReducer from "../join_game_reducer";
+import CloseLobbyReducer from "../close_lobby_reducer";
+import CreateLobbyReducer from "../create_lobby_reducer";
+import JoinLobbyReducer from "../join_lobby_reducer";
+import LeaveLobbyReducer from "../leave_lobby_reducer";
 import RestartGameReducer from "../restart_game_reducer";
+import SetNameReducer from "../set_name_reducer";
 import StartGameReducer from "../start_game_reducer";
 
 export type ChangeDirectionParams = __Infer<typeof ChangeDirectionReducer>;
-export type JoinGameParams = __Infer<typeof JoinGameReducer>;
+export type CloseLobbyParams = __Infer<typeof CloseLobbyReducer>;
+export type CreateLobbyParams = __Infer<typeof CreateLobbyReducer>;
+export type JoinLobbyParams = __Infer<typeof JoinLobbyReducer>;
+export type LeaveLobbyParams = __Infer<typeof LeaveLobbyReducer>;
 export type RestartGameParams = __Infer<typeof RestartGameReducer>;
+export type SetNameParams = __Infer<typeof SetNameReducer>;
 export type StartGameParams = __Infer<typeof StartGameReducer>;
 
