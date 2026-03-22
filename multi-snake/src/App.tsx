@@ -11,7 +11,7 @@ const CELL_SIZE = 18;
 
 const styles = {
   page: {
-    minHeight: "100vh",
+    height: "100%",
     background: "#0f0f23",
     color: "#ccc",
     fontFamily: "'Segoe UI', system-ui, sans-serif",
@@ -20,6 +20,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "1rem",
+    overflow: "auto",
   },
   title: {
     fontSize: "2.5rem",
