@@ -1,30 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function CountdownOverlay({ active }: { active: boolean }) {
   const [count, setCount] = useState(3);
   const [showGo, setShowGo] = useState(false);
+  const wasActive = useRef(false);
 
+  // Track active → inactive transition to trigger "GO!"
   useEffect(() => {
-    if (!active) {
-      setCount(3);
-      setShowGo(false);
-      return;
-    }
-
-    setCount(3);
-    const t1 = setTimeout(() => setCount(2), 1000);
-    const t2 = setTimeout(() => setCount(1), 2000);
-    const t3 = setTimeout(() => {
+    if (active) {
+      wasActive.current = true;
+    } else if (wasActive.current) {
+      wasActive.current = false;
       setCount(0);
       setShowGo(true);
-    }, 3000);
+    }
+  }, [active]);
+
+  // Run 3-2-1 countdown while active
+  useEffect(() => {
+    if (!active) return;
+    setCount(3);
+    setShowGo(false);
+
+    const t1 = setTimeout(() => setCount(2), 1000);
+    const t2 = setTimeout(() => setCount(1), 2000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
     };
   }, [active]);
 
+  // Auto-hide "GO!" after a brief flash
   useEffect(() => {
     if (!showGo) return;
     const t = setTimeout(() => setShowGo(false), 800);
