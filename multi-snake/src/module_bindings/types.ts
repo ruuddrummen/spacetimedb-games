@@ -34,6 +34,7 @@ export const Player = __t.object("Player", {
   name: __t.string(),
   direction: __t.string(),
   nextDirection: __t.string(),
+  nextDirection2: __t.string(),
   alive: __t.bool(),
   score: __t.u32(),
   color: __t.string(),

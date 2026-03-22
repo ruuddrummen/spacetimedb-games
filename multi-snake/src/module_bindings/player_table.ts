@@ -20,6 +20,7 @@ export default __t.row({
   name: __t.string(),
   direction: __t.string(),
   nextDirection: __t.string().name("next_direction"),
+  nextDirection2: __t.string().name("next_direction_2"),
   alive: __t.bool(),
   score: __t.u32(),
   color: __t.string(),

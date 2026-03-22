@@ -60,6 +60,7 @@ export const player = table(
     name: t.string(),
     direction: t.string(), // 'up' | 'down' | 'left' | 'right'
     nextDirection: t.string(),
+    nextDirection2: t.string(),
     alive: t.bool(),
     score: t.u32(),
     color: t.string(),

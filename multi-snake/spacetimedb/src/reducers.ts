@@ -83,6 +83,7 @@ export const create_lobby = spacetimedb.reducer((ctx) => {
     name: userRow.name,
     direction: "right",
     nextDirection: "right",
+    nextDirection2: "",
     alive: true,
     score: 0,
     color: COLORS[0],
@@ -114,6 +115,7 @@ export const join_lobby = spacetimedb.reducer(
       name: userRow.name,
       direction: "right",
       nextDirection: "right",
+      nextDirection2: "",
       alive: true,
       score: 0,
       color: COLORS[joinOrder % COLORS.length],
@@ -206,6 +208,7 @@ export const start_game = spacetimedb.reducer((ctx) => {
       ...p,
       direction: start.direction,
       nextDirection: start.direction,
+      nextDirection2: "",
       alive: true,
       score: 0,
       segments: segs,
@@ -241,8 +244,16 @@ export const change_direction = spacetimedb.reducer(
     if (!p) throw new SenderError("Not in game");
     if (!p.alive) return;
 
-    if (!isOpposite(p.direction, direction)) {
-      ctx.db.player.identity.update({ ...p, nextDirection: direction });
+    if (p.nextDirection === p.direction) {
+      // No input queued yet — fill first slot
+      if (!isOpposite(p.direction, direction)) {
+        ctx.db.player.identity.update({ ...p, nextDirection: direction });
+      }
+    } else {
+      // First slot taken — fill second slot (validate against nextDirection)
+      if (!isOpposite(p.nextDirection, direction)) {
+        ctx.db.player.identity.update({ ...p, nextDirection2: direction });
+      }
     }
   },
 );
@@ -348,10 +359,17 @@ export const game_tick = spacetimedb.reducer(
         newSegments.pop();
       }
 
+      // Shift direction buffer: nextDirection2 becomes nextDirection
+      const shifted =
+        p.nextDirection2 && !isOpposite(nh.direction, p.nextDirection2)
+          ? p.nextDirection2
+          : nh.direction;
+
       ctx.db.player.identity.update({
         ...p,
         direction: nh.direction,
-        nextDirection: nh.direction,
+        nextDirection: shifted,
+        nextDirection2: "",
         segments: newSegments,
         score: newScore,
       });
@@ -423,6 +441,7 @@ export const restart_game = spacetimedb.reducer((ctx) => {
       segments: [],
       direction: "right",
       nextDirection: "right",
+      nextDirection2: "",
     });
   }
 
