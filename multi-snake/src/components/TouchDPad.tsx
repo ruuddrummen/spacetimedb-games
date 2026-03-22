@@ -36,8 +36,7 @@ export function TouchDPad({
   onDirection: (direction: string) => void;
 }) {
   const handle = useCallback(
-    (dir: string) => (e: React.TouchEvent | React.MouseEvent) => {
-      e.preventDefault();
+    (dir: string) => () => {
       onDirection(dir);
     },
     [onDirection],

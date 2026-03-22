@@ -117,9 +117,7 @@ export function GameScreen({
               </div>
             );
           })}
-          {isTouch && (
-            <TouchDPad onDirection={onChangeDirection} />
-          )}
+          {isTouch && <TouchDPad onDirection={onChangeDirection} />}
           <div
             style={{ marginTop: "1rem", color: "#666", fontSize: "0.75rem" }}
           >
