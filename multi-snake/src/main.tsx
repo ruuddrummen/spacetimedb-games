@@ -37,6 +37,14 @@ function Root() {
         })
         .onConnectError((_ctx: ErrorContext, err: Error) => {
           console.error("Error connecting to SpacetimeDB:", err);
+          if (
+            err.message.includes("Unauthorized") ||
+            err.message.includes("Failed to verify token")
+          ) {
+            console.warn("Stored token is invalid, clearing and retrying...");
+            localStorage.removeItem(TOKEN_KEY);
+            window.location.reload();
+          }
         }),
     [],
   );
