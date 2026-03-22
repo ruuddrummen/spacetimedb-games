@@ -15,6 +15,10 @@ export PATH="$HOME/.local/bin:$PATH"
 
 echo "==> SpacetimeDB CLI installed: $(spacetime --version)"
 
+echo "==> Installing Dev Tunnels CLI..."
+curl -sL https://aka.ms/DevTunnelCliInstall | bash
+echo "==> Dev Tunnels CLI installed: $(devtunnel --version)"
+
 echo "==> Configuring default SpacetimeDB server to localhost:3000..."
 # Register a named server entry so CLI commands target the in-container process
 spacetime server add "http://localhost:3000" local --no-fingerprint 2>/dev/null \

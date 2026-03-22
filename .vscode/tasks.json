@@ -7,7 +7,8 @@
       "type": "shell",
       "command": "spacetime dev --template react-ts",
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "/home/node/.local/bin:${env:PATH}" }
       },
       "group": "build",
       "presentation": {
@@ -18,12 +19,31 @@
       "problemMatcher": []
     },
     {
-      "label": "Start SpacetimeDB Dev",
-      "detail": "Publish the TypeScript server module and watch for changes. Starts the local SpacetimeDB server automatically.",
+      "label": "Start SpacetimeDB Server",
+      "detail": "Start the local SpacetimeDB server.",
       "type": "shell",
-      "command": "spacetime dev",
+      "command": "spacetime start",
       "options": {
-        "cwd": "${workspaceFolder}/server"
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "/home/node/.local/bin:${env:PATH}" }
+      },
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start SpacetimeDB Dev",
+      "detail": "Publish the multi-snake module and watch for changes.",
+      "type": "shell",
+      "command": "spacetime dev --project-path multi-snake/",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "/home/node/.local/bin:${env:PATH}" }
       },
       "isBackground": true,
       "group": "build",
@@ -52,9 +72,31 @@
       "problemMatcher": []
     },
     {
+      "label": "Start Dev Tunnel",
+      "detail": "Expose local ports 3000 (SpacetimeDB) and 5173 (Vite) to the internet via Dev Tunnels. Requires: devtunnel user login -g -d",
+      "type": "shell",
+      "command": "bash start-tunnel.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PATH": "/home/node/.local/bin:${env:PATH}" }
+      },
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Start All",
-      "detail": "Start SpacetimeDB dev server and Vite frontend in parallel.",
-      "dependsOn": ["Start SpacetimeDB Dev", "Start Frontend"],
+      "detail": "Start SpacetimeDB server, dev watcher, and dev tunnel in parallel.",
+      "dependsOn": [
+        "Start SpacetimeDB Server",
+        "Start SpacetimeDB Dev",
+        "Start Dev Tunnel"
+      ],
       "dependsOrder": "parallel",
       "group": {
         "kind": "build",
