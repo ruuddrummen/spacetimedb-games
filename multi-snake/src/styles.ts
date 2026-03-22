@@ -125,6 +125,8 @@ export const styles = {
   canvas: {
     borderRadius: "8px",
     border: "2px solid #2a2a4a",
+    maxWidth: "100%",
+    height: "auto",
   },
   deadLabel: {
     color: "#666",

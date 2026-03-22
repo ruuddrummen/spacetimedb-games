@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { styles } from "../styles";
 import { GameCanvas } from "./GameCanvas";
+import { SwipeArea } from "./SwipeArea";
+import { TouchDPad } from "./TouchDPad";
+import { useIsTouchDevice } from "../hooks/useIsTouchDevice";
 import type { Identity } from "spacetimedb";
 import type { Game, Player, Food } from "../module_bindings/types";
 
@@ -19,8 +22,16 @@ export function GameScreen({
   onChangeDirection: (dir: string) => void;
   onLeave: () => void;
 }) {
+  const isTouch = useIsTouchDevice();
   const gamePlayers = players.filter((p) => p.gameId === game.id);
   const gameFoods = foods.filter((f) => f.gameId === game.id);
+
+  // Prevent browser nav bar toggle on swipe during gameplay
+  useEffect(() => {
+    const prevent = (e: TouchEvent) => e.preventDefault();
+    document.addEventListener("touchmove", prevent, { passive: false });
+    return () => document.removeEventListener("touchmove", prevent);
+  }, []);
 
   // Keyboard controls
   useEffect(() => {
@@ -65,11 +76,13 @@ export function GameScreen({
         SNAKE ARENA
       </h1>
       <div style={styles.gameLayout}>
-        <GameCanvas
-          players={gamePlayers}
-          foods={gameFoods}
-          gridSize={game.gridSize}
-        />
+        <SwipeArea onSwipe={onChangeDirection}>
+          <GameCanvas
+            players={gamePlayers}
+            foods={gameFoods}
+            gridSize={game.gridSize}
+          />
+        </SwipeArea>
         <div style={styles.scoreboard}>
           <h3
             style={{ margin: "0 0 0.75rem", color: "#eee", fontSize: "1rem" }}
@@ -104,10 +117,13 @@ export function GameScreen({
               </div>
             );
           })}
+          {isTouch && (
+            <TouchDPad onDirection={onChangeDirection} />
+          )}
           <div
             style={{ marginTop: "1rem", color: "#666", fontSize: "0.75rem" }}
           >
-            WASD / Arrow keys
+            {isTouch ? "Swipe or use D-pad" : "WASD / Arrow keys"}
           </div>
           <button
             style={{
