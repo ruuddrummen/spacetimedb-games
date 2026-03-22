@@ -1,22 +1,14 @@
-import {
-  StrictMode,
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { StrictMode, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import { Identity } from "spacetimedb";
 import { SpacetimeDBProvider } from "spacetimedb/react";
 import { DbConnection, ErrorContext } from "./module_bindings/index.ts";
+import { IdentityContext } from "./context.ts";
 
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? "ws://localhost:3000";
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? "multi-snake";
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
-
-export const IdentityContext = createContext<Identity | null>(null);
-export const useIdentity = () => useContext(IdentityContext);
 
 function Root() {
   const [identity, setIdentity] = useState<Identity | null>(null);
