@@ -21,11 +21,12 @@ if ! command -v devtunnel &>/dev/null; then
   exit 1
 fi
 
-if ! devtunnel user show &>/dev/null; then
-  echo "ERROR: Not logged in to Dev Tunnels."
-  echo "Run:   devtunnel user login -g -d"
-  echo "(Use -g for GitHub, -d for device-code flow in headless containers)"
-  exit 1
+if devtunnel user show 2>&1 | grep -q "Not logged in"; then
+  echo "==> Not logged in to Dev Tunnels. Starting device-code login (GitHub)..."
+  echo "    A code will appear below — visit https://github.com/login/device and enter it."
+  echo ""
+  devtunnel user login -g -d
+  echo ""
 fi
 
 # --- Create a persistent tunnel with anonymous access -----------------------

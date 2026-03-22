@@ -4,20 +4,22 @@ set -euo pipefail
 echo "==> Installing SpacetimeDB CLI..."
 curl -sSf https://install.spacetimedb.com | sh -s -- --yes
 
-# Persist ~/.local/bin in shell configs so interactive terminals see the binary
-PROFILE_LINE='export PATH="$HOME/.local/bin:$PATH"'
-for file in "$HOME/.bashrc" "$HOME/.profile"; do
-    grep -qxF "$PROFILE_LINE" "$file" 2>/dev/null || echo "$PROFILE_LINE" >> "$file"
+# Persist ~/.local/bin and ~/bin in shell configs so interactive terminals see the binaries
+for profile_dir in "$HOME/.local/bin" "$HOME/bin"; do
+    PROFILE_LINE="export PATH=\"$profile_dir:\$PATH\""
+    for file in "$HOME/.bashrc" "$HOME/.profile"; do
+        grep -qF "$profile_dir" "$file" 2>/dev/null || echo "$PROFILE_LINE" >> "$file"
+    done
 done
-
-# Make spacetime available for the remainder of this script
-export PATH="$HOME/.local/bin:$PATH"
 
 echo "==> SpacetimeDB CLI installed: $(spacetime --version)"
 
 echo "==> Installing Dev Tunnels CLI..."
 curl -sL https://aka.ms/DevTunnelCliInstall | bash
 echo "==> Dev Tunnels CLI installed: $(devtunnel --version)"
+
+# Make spacetime and devtunnel available for the remainder of this script
+export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
 echo "==> Configuring default SpacetimeDB server to localhost:3000..."
 # Register a named server entry so CLI commands target the in-container process

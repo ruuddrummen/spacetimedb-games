@@ -22,7 +22,7 @@
       "label": "Start SpacetimeDB Server",
       "detail": "Start the local SpacetimeDB server.",
       "type": "shell",
-      "command": "spacetime start",
+      "command": "spacetime start --jwt-pub-key-path ~/.config/spacetime/id_ecdsa.pub --jwt-priv-key-path ~/.config/spacetime/id_ecdsa",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": { "PATH": "/home/node/.local/bin:${env:PATH}" }
@@ -78,7 +78,7 @@
       "command": "bash start-tunnel.sh",
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PATH": "/home/node/.local/bin:${env:PATH}" }
+        "env": { "PATH": "/home/node/.local/bin:/home/node/bin:${env:PATH}" }
       },
       "isBackground": true,
       "group": "build",

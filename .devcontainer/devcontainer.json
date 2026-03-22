@@ -12,10 +12,10 @@
       "onAutoForward": "openBrowser"
     }
   },
+  "remoteUser": "node",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "postStartCommand": "spacetime start &>/tmp/spacetimedb.log &",
   "remoteEnv": {
-    "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.local/bin"
+    "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.local/bin:${containerEnv:HOME}/bin"
   },
   "customizations": {
     "vscode": {
