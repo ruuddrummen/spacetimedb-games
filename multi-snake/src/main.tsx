@@ -4,7 +4,7 @@ import App from "./App.tsx";
 import { Identity } from "spacetimedb";
 import { SpacetimeDBProvider } from "spacetimedb/react";
 import { DbConnection, ErrorContext } from "./module_bindings/index.ts";
-import { IdentityContext } from "./context.ts";
+import { IdentityContext, SubscriptionReadyContext } from "./context.ts";
 
 const HOST = import.meta.env.VITE_SPACETIMEDB_HOST ?? "ws://localhost:3000";
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? "multi-snake";
@@ -12,6 +12,7 @@ const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
 function Root() {
   const [identity, setIdentity] = useState<Identity | null>(null);
+  const [subscriptionReady, setSubscriptionReady] = useState(false);
 
   const connectionBuilder = useMemo(
     () =>
@@ -22,7 +23,10 @@ function Root() {
         .onConnect((conn: DbConnection, id: Identity, token: string) => {
           localStorage.setItem(TOKEN_KEY, token);
           setIdentity(id);
-          conn.subscriptionBuilder().subscribeToAllTables();
+          conn
+            .subscriptionBuilder()
+            .onApplied(() => setSubscriptionReady(true))
+            .subscribeToAllTables();
         })
         .onDisconnect(() => {
           console.log("Disconnected from SpacetimeDB");
@@ -44,7 +48,9 @@ function Root() {
   return (
     <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
       <IdentityContext.Provider value={identity}>
-        <App />
+        <SubscriptionReadyContext.Provider value={subscriptionReady}>
+          <App />
+        </SubscriptionReadyContext.Provider>
       </IdentityContext.Provider>
     </SpacetimeDBProvider>
   );

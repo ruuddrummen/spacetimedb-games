@@ -1,12 +1,13 @@
 import { useCallback } from "react";
 import { tables, reducers } from "../module_bindings";
 import { useSpacetimeDB, useTable, useReducer } from "spacetimedb/react";
-import { useIdentity } from "../context";
+import { useIdentity, useSubscriptionReady } from "../context";
 
 export function useGameState() {
   const conn = useSpacetimeDB();
   const { isActive: connected } = conn;
   const identity = useIdentity();
+  const subscriptionReady = useSubscriptionReady();
 
   const [games] = useTable(tables.game);
   const [players] = useTable(tables.player);
@@ -47,6 +48,7 @@ export function useGameState() {
 
   return {
     connected,
+    subscriptionReady,
     identity,
     games,
     players,

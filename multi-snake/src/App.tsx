@@ -8,6 +8,7 @@ import { GameOverScreen } from "./components/GameOverScreen";
 function App() {
   const {
     connected,
+    subscriptionReady,
     identity,
     games,
     players,
@@ -20,7 +21,7 @@ function App() {
     actions,
   } = useGameState();
 
-  if (!connected) return <ConnectingScreen />;
+  if (!connected || !subscriptionReady) return <ConnectingScreen />;
 
   if (!myPlayer || !myGame) {
     return (
