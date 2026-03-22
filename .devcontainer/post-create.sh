@@ -35,4 +35,28 @@ if [ -f "client/package.json" ]; then
 fi
 
 echo ""
+echo "==> Starting SpacetimeDB temporarily to create a local identity..."
+mkdir -p "$HOME/.config/spacetime"
+spacetime start \
+    --jwt-pub-key-path "$HOME/.config/spacetime/id_ecdsa.pub" \
+    --jwt-priv-key-path "$HOME/.config/spacetime/id_ecdsa" &
+STDB_PID=$!
+
+# Wait up to 30 s for the server to accept connections
+for i in $(seq 1 30); do
+    if curl -sf "http://127.0.0.1:3000/v1/ping" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+echo "==> Logging in with local server identity (no browser)..."
+spacetime login --server-issued-login local --no-browser || \
+    echo "  warning: local login failed — you may be prompted to log in on first 'spacetime dev' run"
+
+# Stop the temporary server; it will be restarted properly by the 'Start SpacetimeDB Server' task
+kill "$STDB_PID" 2>/dev/null || true
+wait "$STDB_PID" 2>/dev/null || true
+
+echo ""
 echo "==> Done. See SETUP.md for next steps."
