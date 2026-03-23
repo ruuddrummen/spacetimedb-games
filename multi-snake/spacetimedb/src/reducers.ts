@@ -1,4 +1,4 @@
-import { SenderError, t } from "spacetimedb/server";
+import { SenderError, t, type ReducerCtx, type InferSchema } from "spacetimedb/server";
 import { ScheduleAt } from "spacetimedb";
 import spacetimedb from "./schema";
 import {
@@ -17,10 +17,12 @@ import {
   type Position,
 } from "./engine";
 
+type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
+type PlayerRow = ReturnType<Ctx["db"]["player"]["identity"]["find"]> & {};
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function cleanupGame(ctx: any, gameId: bigint) {
+function cleanupGame(ctx: Ctx, gameId: bigint) {
   for (const p of [...ctx.db.player.player_game_id.filter(gameId)]) {
     ctx.db.player.identity.delete(p.identity);
   }
@@ -35,9 +37,8 @@ function cleanupGame(ctx: any, gameId: bigint) {
   ctx.db.game.id.delete(gameId);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyPlayerMutations(ctx: any, existingRows: any[], mutations: PlayerMutation[]) {
-  const rowMap = new Map<string, (typeof existingRows)[0]>();
+function applyPlayerMutations(ctx: Ctx, existingRows: PlayerRow[], mutations: PlayerMutation[]) {
+  const rowMap = new Map<string, PlayerRow>();
   for (const row of existingRows) {
     rowMap.set(row.identity.toHexString(), row);
   }
@@ -56,8 +57,7 @@ function applyPlayerMutations(ctx: any, existingRows: any[], mutations: PlayerMu
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyFoodMutations(ctx: any, gameId: bigint, toDelete: bigint[], toSpawn: Position[]) {
+function applyFoodMutations(ctx: Ctx, gameId: bigint, toDelete: bigint[], toSpawn: Position[]) {
   for (const foodId of toDelete) {
     ctx.db.food.id.delete(foodId);
   }

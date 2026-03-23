@@ -11,9 +11,6 @@ import {
   makeSegments,
 } from "./helpers";
 
-// Re-export pure helpers for external consumers
-export { isOpposite, directionDelta, rngInt, getStartPosition, makeSegments };
-
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type Position = { x: number; y: number };

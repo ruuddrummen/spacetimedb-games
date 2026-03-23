@@ -3,13 +3,15 @@ import {
   advanceTick,
   initializeGame,
   spawnFoodPure,
+  type PlayerSnapshot,
+  type GamePhysicsSnapshot,
+} from "./engine";
+import {
   isOpposite,
   directionDelta,
   makeSegments,
   rngInt,
-  type PlayerSnapshot,
-  type GamePhysicsSnapshot,
-} from "./engine";
+} from "./helpers";
 
 // ── Test helpers ───────────────────────────────────────────────────────────────
 
