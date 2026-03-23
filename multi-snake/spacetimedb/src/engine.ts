@@ -141,7 +141,7 @@ function buildOccupiedSet(
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /**
- * Advance the game by one tick.  100 % pure — reads only from the snapshot,
+ * Advance the game by one tick.  100% pure — reads only from the snapshot,
  * returns only mutation descriptions.
  */
 export function advanceTick(
