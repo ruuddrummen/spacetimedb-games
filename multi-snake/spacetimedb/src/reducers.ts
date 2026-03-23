@@ -9,13 +9,13 @@ import {
   tick_schedule,
   registerGameTick,
 } from "./schema";
+import { isOpposite } from "./helpers";
 import {
-  isOpposite,
-  directionDelta,
-  getStartPosition,
-  makeSegments,
-  spawnFood,
-} from "./helpers";
+  advanceTick,
+  initializeGame,
+  type PlayerMutation,
+  type Position,
+} from "./engine";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,37 @@ function cleanupGame(ctx: any, gameId: bigint) {
     }
   }
   ctx.db.game.id.delete(gameId);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyPlayerMutations(ctx: any, existingRows: any[], mutations: PlayerMutation[]) {
+  const rowMap = new Map<string, (typeof existingRows)[0]>();
+  for (const row of existingRows) {
+    rowMap.set(row.identity.toHexString(), row);
+  }
+  for (const m of mutations) {
+    const row = rowMap.get(m.id);
+    if (!row) continue;
+    ctx.db.player.identity.update({
+      ...row,
+      direction: m.direction,
+      nextDirection: m.nextDirection,
+      nextDirection2: m.nextDirection2,
+      segments: m.segments,
+      alive: m.alive,
+      score: m.score,
+    });
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyFoodMutations(ctx: any, gameId: bigint, toDelete: bigint[], toSpawn: Position[]) {
+  for (const foodId of toDelete) {
+    ctx.db.food.id.delete(foodId);
+  }
+  for (const { x, y } of toSpawn) {
+    ctx.db.food.insert({ id: 0n, gameId, x, y });
+  }
 }
 
 // ── Reducers ───────────────────────────────────────────────────────────────────
@@ -189,40 +220,27 @@ export const start_game = spacetimedb.reducer((ctx) => {
   }
 
   const gridSize = gameRow.gridSize;
-  let rng = gameRow.rngState;
   const gameId = gameRow.id;
 
-  // Initialize snakes for all players in this game
   const players = [...ctx.db.player.player_game_id.filter(gameId)];
   if (players.length === 0) throw new SenderError("No players");
 
-  for (const p of players) {
-    const start = getStartPosition(p.joinOrder, gridSize);
-    const segs = makeSegments(
-      start.x,
-      start.y,
-      start.direction,
-      INITIAL_SNAKE_LENGTH,
-    );
-    ctx.db.player.identity.update({
-      ...p,
-      direction: start.direction,
-      nextDirection: start.direction,
-      nextDirection2: "",
-      alive: true,
-      score: 0,
-      segments: segs,
-    });
-  }
-
-  // Spawn initial food
   const foodCount = Math.max(3, players.length + 1);
-  for (let i = 0; i < foodCount; i++) {
-    rng = spawnFood(ctx, rng, gridSize, gameId);
+  const result = initializeGame(
+    players.map((p) => ({ id: p.identity.toHexString(), joinOrder: p.joinOrder })),
+    gridSize,
+    gameRow.rngState,
+    foodCount,
+    INITIAL_SNAKE_LENGTH,
+  );
+
+  applyPlayerMutations(ctx, players, result.playerMutations);
+  for (const { x, y } of result.foodSpawns) {
+    ctx.db.food.insert({ id: 0n, gameId, x, y });
   }
 
   // Update game state — enter countdown phase
-  ctx.db.game.id.update({ ...gameRow, phase: "countdown", rngState: rng });
+  ctx.db.game.id.update({ ...gameRow, phase: "countdown", rngState: result.nextRngState });
 
   // Schedule first tick after 3-second countdown
   const COUNTDOWN_MICROS = 3_000_000n;
@@ -283,143 +301,47 @@ export const game_tick = spacetimedb.reducer(
       return;
     }
 
-    const gridSize = gameRow.gridSize;
-    let rng = gameRow.rngState;
-    const allPlayers = [...ctx.db.player.player_game_id.filter(gameId)];
-    const alivePlayers = allPlayers.filter((p) => p.alive);
+    // ── Read snapshot ──────────────────────────────────────────────────────
+    const players = [...ctx.db.player.player_game_id.filter(gameId)];
+    const food = [...ctx.db.food.food_game_id.filter(gameId)];
 
-    if (alivePlayers.length === 0) {
-      ctx.db.game.id.update({ ...gameRow, phase: "finished", rngState: rng });
-      return;
-    }
+    const snapshot = {
+      players: players.map((p) => ({
+        id: p.identity.toHexString(),
+        direction: p.direction,
+        nextDirection: p.nextDirection,
+        nextDirection2: p.nextDirection2,
+        segments: p.segments as { x: number; y: number }[],
+        alive: p.alive,
+        score: p.score,
+        joinOrder: p.joinOrder,
+      })),
+      food: food.map((f) => ({ id: f.id, x: f.x, y: f.y })),
+      rngState: gameRow.rngState,
+    };
 
-    // Compute new head positions
-    const newHeads = new Map<
-      string,
-      { x: number; y: number; direction: string }
-    >();
-    for (const p of alivePlayers) {
-      let dir = p.nextDirection;
-      if (isOpposite(p.direction, dir)) dir = p.direction;
-      const { dx, dy } = directionDelta(dir);
-      const head = p.segments[0];
-      newHeads.set(p.identity.toHexString(), {
-        x: head.x + dx,
-        y: head.y + dy,
-        direction: dir,
-      });
-    }
+    // ── Compute ────────────────────────────────────────────────────────────
+    const result = advanceTick(snapshot, gameRow.gridSize);
 
-    // Collect all body positions for collision detection
-    const bodyPositions = new Set<string>();
-    for (const p of alivePlayers) {
-      for (const seg of p.segments) {
-        bodyPositions.add(`${seg.x},${seg.y}`);
-      }
-    }
+    // ── Write mutations ────────────────────────────────────────────────────
+    applyPlayerMutations(ctx, players, result.playerMutations);
+    applyFoodMutations(ctx, gameId, result.foodToDelete, result.foodToSpawn);
 
-    // Detect deaths
-    const deaths = new Set<string>();
-    for (const p of alivePlayers) {
-      const id = p.identity.toHexString();
-      const nh = newHeads.get(id)!;
-
-      // Wall collision
-      if (nh.x < 0 || nh.x >= gridSize || nh.y < 0 || nh.y >= gridSize) {
-        deaths.add(id);
-        continue;
-      }
-
-      // Body collision
-      if (bodyPositions.has(`${nh.x},${nh.y}`)) {
-        deaths.add(id);
-        continue;
-      }
-
-      // Head-to-head collision
-      for (const [otherId, otherHead] of newHeads) {
-        if (otherId !== id && nh.x === otherHead.x && nh.y === otherHead.y) {
-          deaths.add(id);
-          deaths.add(otherId);
-        }
-      }
-    }
-
-    // Collect food positions for this game
-    const foodList = [...ctx.db.food.food_game_id.filter(gameId)];
-    const foodMap = new Map<string, bigint>();
-    for (const f of foodList) {
-      foodMap.set(`${f.x},${f.y}`, f.id);
-    }
-
-    // Apply moves
-    for (const p of alivePlayers) {
-      const id = p.identity.toHexString();
-      const nh = newHeads.get(id)!;
-
-      if (deaths.has(id)) {
-        ctx.db.player.identity.update({ ...p, alive: false, segments: [] });
-        continue;
-      }
-
-      const newSegments = [{ x: nh.x, y: nh.y }, ...p.segments];
-      let newScore = p.score;
-
-      // Check food collision
-      const foodKey = `${nh.x},${nh.y}`;
-      if (foodMap.has(foodKey)) {
-        const foodId = foodMap.get(foodKey)!;
-        ctx.db.food.id.delete(foodId);
-        foodMap.delete(foodKey);
-        newScore += 1;
-        rng = spawnFood(ctx, rng, gridSize, gameId);
-      } else {
-        newSegments.pop();
-      }
-
-      // Shift direction buffer: nextDirection2 becomes nextDirection
-      const shifted =
-        p.nextDirection2 && !isOpposite(nh.direction, p.nextDirection2)
-          ? p.nextDirection2
-          : nh.direction;
-
-      ctx.db.player.identity.update({
-        ...p,
-        direction: nh.direction,
-        nextDirection: shifted,
-        nextDirection2: "",
-        segments: newSegments,
-        score: newScore,
-      });
-    }
-
-    // Check end conditions
-    const stillAlive = allPlayers
-      .map((p) => p.identity.toHexString())
-      .filter(
-        (id) =>
-          !deaths.has(id) &&
-          alivePlayers.some((a) => a.identity.toHexString() === id),
-      );
-    const totalPlayers = allPlayers.length;
-
-    if (
-      stillAlive.length === 0 ||
-      (totalPlayers > 1 && stillAlive.length <= 1)
-    ) {
-      ctx.db.game.id.update({ ...gameRow, phase: "finished", rngState: rng });
-      return;
-    }
-
-    // Continue game
-    ctx.db.game.id.update({ ...gameRow, rngState: rng });
-
-    const nextTime = ctx.timestamp.microsSinceUnixEpoch + TICK_INTERVAL_MICROS;
-    ctx.db.tick_schedule.insert({
-      scheduledId: 0n,
-      scheduledAt: ScheduleAt.time(nextTime),
-      gameId,
+    ctx.db.game.id.update({
+      ...gameRow,
+      phase: result.gameOver ? "finished" : "playing",
+      rngState: result.nextRngState,
     });
+
+    if (!result.gameOver) {
+      const nextTime =
+        ctx.timestamp.microsSinceUnixEpoch + TICK_INTERVAL_MICROS;
+      ctx.db.tick_schedule.insert({
+        scheduledId: 0n,
+        scheduledAt: ScheduleAt.time(nextTime),
+        gameId,
+      });
+    }
   },
 );
 
