@@ -1,10 +1,20 @@
 {
   "version": 1,
   "skills": {
+    "grill-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "computedHash": "d85881e7b2f6e9c718d45ac9954c1d8e05e21f9b6f3ca58062ae80f89474750b"
+    },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "computedHash": "92ffd85a803661d754221f7aba260ee2065d3402eadf78872e227146fe1d6fbf"
+    },
+    "write-a-prd": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "computedHash": "d4234a2ebcf89b745a9e33f7e0831aef6ff5cbe48f91db54796ae7cd897d78a8"
     }
   }
 }
