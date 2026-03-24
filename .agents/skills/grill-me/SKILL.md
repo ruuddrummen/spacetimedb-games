@@ -10,7 +10,7 @@ Interview me relentlessly about every aspect of this plan until we reach a share
 
 ---
 
-When you are absolutely sure we have reached a shared understanding, confirm with me and ask what the next step is. Options are:
+When you are absolutely sure we have reached a shared understanding, confirm with me and ask what the next step is. Use the #tool:vscode/askQuestions tool to present the options:
 
 - "Start implementation" — you will proceed to implement the plan as is, without further questioning
 - "Create a PRD" — you will proceed to create a PRD by following the write-a-prd skill, using the plan as source material
